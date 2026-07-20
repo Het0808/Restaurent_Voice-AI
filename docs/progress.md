@@ -1,7 +1,7 @@
 # Project Progress
 
 - Stage 0: Project initialization — Completed
-- Stage 1: Architecture and planning — Not started
+- Stage 1: Architecture and planning — Completed
 - Stage 2: FastAPI foundation — Not started
 - Stage 3: Reservation database — Not started
 - Stage 4: RAG pipeline — Not started
