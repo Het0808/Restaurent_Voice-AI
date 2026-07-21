@@ -45,8 +45,33 @@ class BusinessValidationError(ApplicationError):
         super().__init__(
             message,
             code="VALIDATION_ERROR",
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         )
+
+
+class ResourceNotFoundError(NotFoundError):
+    """Raised when a database-backed resource cannot be found."""
+
+
+class ReservationConflictError(ApplicationError):
+    """Raised when no table can safely satisfy a reservation request."""
+
+    def __init__(self, message: str = "No table is available for the requested time") -> None:
+        super().__init__(message, code="RESERVATION_CONFLICT", status_code=409)
+
+
+class InvalidReservationStateError(ApplicationError):
+    """Raised when an operation is invalid for the reservation's current state."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message, code="INVALID_RESERVATION_STATE", status_code=422)
+
+
+class DatabaseOperationError(ApplicationError):
+    """Safe wrapper for unexpected persistence failures."""
+
+    def __init__(self, message: str = "The database operation could not be completed") -> None:
+        super().__init__(message, code="DATABASE_OPERATION_ERROR", status_code=503)
 
 
 def error_content(code: str, message: str) -> dict[str, Any]:

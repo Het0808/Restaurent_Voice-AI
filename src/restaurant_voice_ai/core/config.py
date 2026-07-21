@@ -26,6 +26,11 @@ class Settings(BaseSettings):
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     api_v1_prefix: str = "/api/v1"
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
+    database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/restaurant_voice_ai"
+    db_echo: bool = False
+    default_reservation_duration_minutes: int = Field(default=90, ge=15, le=480)
+    restaurant_timezone: str = "Asia/Kolkata"
+    max_party_size: int = Field(default=20, ge=1, le=100)
 
     @field_validator("api_v1_prefix")
     @classmethod

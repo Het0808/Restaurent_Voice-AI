@@ -13,6 +13,7 @@ from restaurant_voice_ai.api.router import api_router
 from restaurant_voice_ai.core.config import Settings, get_settings
 from restaurant_voice_ai.core.exceptions import register_exception_handlers
 from restaurant_voice_ai.core.logging import configure_logging, get_logger
+from restaurant_voice_ai.db.session import dispose_engine
 from restaurant_voice_ai.schemas.common import HealthResponse, RootResponse
 
 
@@ -28,8 +29,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "Application startup",
             extra={"environment": app_settings.app_env, "version": app_settings.app_version},
         )
-        yield
-        logger.info("Application shutdown")
+        try:
+            yield
+        finally:
+            await dispose_engine()
+            logger.info("Application shutdown")
 
     application = FastAPI(
         title=app_settings.app_name,
