@@ -1,11 +1,17 @@
 """Conversation contracts and dependency abstractions."""
 
 from dataclasses import dataclass
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from pydantic import BaseModel, Field
 
 from restaurant_voice_ai.conversation.enums import Intent
+
+if TYPE_CHECKING:
+    from restaurant_voice_ai.conversation.llm.base import ConversationModel
+    from restaurant_voice_ai.conversation.memory.base import ConversationMemory
+    from restaurant_voice_ai.conversation.tools.dispatcher import ConversationToolDispatcher
+    from restaurant_voice_ai.core.config import Settings
 
 
 class ConversationEntities(BaseModel):
@@ -55,3 +61,7 @@ class ConversationDependencies:
     extractor: EntityExtractor
     knowledge: KnowledgeGateway
     reservations: ReservationGateway
+    settings: "Settings | None" = None
+    memory: "ConversationMemory | None" = None
+    conversation_model: "ConversationModel | None" = None
+    dispatcher: "ConversationToolDispatcher | None" = None

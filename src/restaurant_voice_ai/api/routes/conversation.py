@@ -27,4 +27,10 @@ async def process_conversation_message(
     rag_service: Annotated[RagService, Depends(get_rag_service)],
 ) -> ConversationMessageResponse:
     service = ConversationService(build_conversation_dependencies(settings, session, rag_service))
-    return await service.process_message(data.message, data.language, debug=data.debug)
+    return await service.process_message(
+        data.message,
+        data.language,
+        conversation_id=data.conversation_id,
+        metadata=data.metadata,
+        debug=data.debug,
+    )

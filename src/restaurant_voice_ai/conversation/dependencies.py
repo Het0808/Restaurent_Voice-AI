@@ -162,4 +162,5 @@ def build_conversation_dependencies(
         extractor=extractor,
         knowledge=RagKnowledgeGateway(rag_service),
         reservations=DatabaseReservationGateway(ReservationService(session, settings), settings),
+        settings=settings,
     )

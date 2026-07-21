@@ -25,3 +25,7 @@ class ConversationState(TypedDict, total=False):
     error_code: str | None
     error_message: str | None
     trace: list[dict[str, Any]]
+    metadata: dict[str, Any]
+    snapshot: dict[str, Any]
+    response: dict[str, Any]
+    turn_number: int

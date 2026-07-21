@@ -34,3 +34,20 @@ class NextAction(StrEnum):
     CONFIRM_RESERVATION = "confirm_reservation"
     RETRY = "retry"
     HANDOFF_RECOMMENDED = "handoff_recommended"
+    AWAIT_CONFIRMATION = "await_confirmation"
+
+
+class ConfirmationStatus(StrEnum):
+    NOT_REQUIRED = "not_required"
+    AWAITING_CONFIRMATION = "awaiting_confirmation"
+    CONFIRMED = "confirmed"
+    REJECTED = "rejected"
+    EXPIRED = "expired"
+    EXECUTING = "executing"
+    COMPLETED = "completed"
+
+
+class ConversationStatus(StrEnum):
+    ACTIVE = "active"
+    COMPLETED = "completed"
+    RESET = "reset"

@@ -48,6 +48,14 @@ class Settings(BaseSettings):
     rag_chunk_overlap: int = Field(default=120, ge=0, le=1000)
     conversation_intent_provider: Literal["rules", "google"] = "rules"
     google_chat_model: str | None = None
+    conversation_mode: Literal["rules", "google", "hybrid"] = "hybrid"
+    conversation_entity_provider: Literal["rules", "google"] = "google"
+    conversation_response_provider: Literal["rules", "google"] = "google"
+    conversation_memory_backend: Literal["memory"] = "memory"
+    conversation_max_history_messages: int = Field(default=20, ge=2, le=100)
+    conversation_max_tool_iterations: int = Field(default=3, ge=1, le=10)
+    conversation_require_mutation_confirmation: bool = True
+    conversation_memory_ttl_seconds: int = Field(default=3600, ge=30, le=86400)
 
     @field_validator("api_v1_prefix")
     @classmethod
