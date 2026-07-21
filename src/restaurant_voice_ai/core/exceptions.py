@@ -3,7 +3,7 @@
 import logging
 from typing import Any
 
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 
 from restaurant_voice_ai.schemas.common import ErrorResponse
@@ -160,7 +160,26 @@ async def unhandled_error_handler(_: Request, exc: Exception) -> JSONResponse:
     )
 
 
+async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
+    detail: dict[str, Any] = exc.detail if isinstance(exc.detail, dict) else {}
+    code = str(detail.get("code", "http_error"))
+    message = str(detail.get("message", "The request could not be completed."))
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "error": {
+                "code": code,
+                "message": message,
+                "request_id": getattr(request.state, "request_id", "-"),
+                "recoverable": exc.status_code < 500,
+            }
+        },
+        headers=exc.headers,
+    )
+
+
 def register_exception_handlers(app: FastAPI) -> None:
     """Register application-wide exception handlers."""
     app.add_exception_handler(ApplicationError, application_error_handler)  # type: ignore[arg-type]
+    app.add_exception_handler(HTTPException, http_exception_handler)  # type: ignore[arg-type]
     app.add_exception_handler(Exception, unhandled_error_handler)

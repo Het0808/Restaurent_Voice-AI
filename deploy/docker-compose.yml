@@ -1,0 +1,48 @@
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    env_file:
+      - path: ../.env
+        required: false
+    environment:
+      APP_VERSION: "0.8.0"
+      DATABASE_URL: postgresql+asyncpg://restaurant:dev-only-change-me@postgres:5432/restaurant_voice_ai
+      REDIS_URL: redis://redis:6379/0
+      REDIS_ENABLED: "true"
+      CONVERSATION_MEMORY_BACKEND: redis
+      IDEMPOTENCY_BACKEND: redis
+      RATE_LIMIT_BACKEND: redis
+      CHROMA_PERSIST_DIRECTORY: /app/data/chroma
+    ports: ["8000:8000"]
+    volumes: ["chroma_data:/app/data/chroma"]
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    restart: unless-stopped
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: restaurant_voice_ai
+      POSTGRES_USER: restaurant
+      POSTGRES_PASSWORD: dev-only-change-me
+    volumes: ["postgres_data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U restaurant -d restaurant_voice_ai"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes: ["redis_data:/data"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+volumes:
+  postgres_data:
+  redis_data:
+  chroma_data:

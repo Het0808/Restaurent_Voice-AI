@@ -3,6 +3,7 @@
 import re
 import uuid
 from datetime import date
+from time import perf_counter
 from typing import Any
 
 from restaurant_voice_ai.conversation.confirmation import (
@@ -32,6 +33,7 @@ from restaurant_voice_ai.conversation.tools.dispatcher import (
     ToolExecutionContext,
 )
 from restaurant_voice_ai.core.config import Settings
+from restaurant_voice_ai.observability.metrics import metrics
 from restaurant_voice_ai.schemas.conversation import ConversationMessageResponse
 
 MUTATION_INTENTS = {
@@ -81,6 +83,7 @@ class ConversationService:
             dependencies.knowledge,
             dependencies.reservations,
             self.settings.max_party_size,
+            dependencies.idempotency,
         )
         self.graph = create_conversation_graph(self._process_turn_node)
 
@@ -93,6 +96,7 @@ class ConversationService:
         metadata: dict[str, Any] | None = None,
         debug: bool = False,
     ) -> ConversationMessageResponse:
+        started_at = perf_counter()
         identifier = conversation_id or str(uuid.uuid4())
         async with self.memory.conversation_lock(identifier):
             snapshot = await self.memory.load(identifier)
@@ -118,7 +122,20 @@ class ConversationService:
         response_data.setdefault(
             "turn_number", result.get("turn_number", max(saved.turn_number, 1))
         )
-        return ConversationMessageResponse.model_validate(response_data)
+        response = ConversationMessageResponse.model_validate(response_data)
+        metrics.conversation_turns.labels(
+            response.intent.value,
+            response.model_provider,
+            str(response.fallback_used).lower(),
+        ).inc()
+        if self.dependencies.audit is not None:
+            await self.dependencies.audit.record_turn(
+                message,
+                response,
+                metadata or {"channel": "text", "language": language},
+                (perf_counter() - started_at) * 1000,
+            )
+        return response
 
     async def reset(self, conversation_id: str) -> None:
         async with self.memory.conversation_lock(conversation_id):

@@ -2,7 +2,7 @@
 
 import logging
 
-from fastapi import Request
+from starlette.requests import HTTPConnection
 
 from restaurant_voice_ai.core.config import Settings
 from restaurant_voice_ai.rag.bm25_store import BM25Store
@@ -33,7 +33,7 @@ def build_rag_service(settings: Settings) -> RagService:
     )
 
 
-def get_rag_service(request: Request) -> RagService:
+def get_rag_service(request: HTTPConnection) -> RagService:
     """Create one service lazily per app, without embedding calls or ingestion."""
     service = getattr(request.app.state, "rag_service", None)
     if service is None:

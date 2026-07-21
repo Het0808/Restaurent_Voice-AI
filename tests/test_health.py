@@ -24,7 +24,7 @@ async def test_unversioned_health(client: AsyncClient) -> None:
     assert response.json() == {
         "status": "healthy",
         "service": "Multilingual AI Restaurant Voice Receptionist",
-        "version": "0.1.0",
+        "version": "0.8.0",
         "environment": "test",
     }
 
@@ -38,5 +38,5 @@ async def test_versioned_health_matches_contract(client: AsyncClient) -> None:
     assert set(body) == {"status", "service", "version", "environment"}
     assert body["status"] == "healthy"
     assert body["service"] == "Multilingual AI Restaurant Voice Receptionist"
-    assert body["version"] == "0.1.0"
+    assert body["version"] == "0.8.0"
     assert body["environment"] == "test"

@@ -1,0 +1,13 @@
+services:
+  test:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    entrypoint: ["python", "-m", "pytest", "-m", "integration"]
+    environment:
+      APP_ENV: test
+      DATABASE_URL: postgresql+asyncpg://restaurant:test-only@postgres:5432/restaurant_voice_ai_test
+      REDIS_ENABLED: "true"
+      REDIS_URL: redis://redis:6379/1
+      VOICE_STT_PROVIDER: fake
+      VOICE_TTS_PROVIDER: fake

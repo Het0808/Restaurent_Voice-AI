@@ -1,0 +1,58 @@
+name: CI
+on:
+  push:
+  pull_request:
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e '.[dev]'
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: mypy src
+      - run: pytest -m "not integration"
+        env:
+          APP_ENV: test
+          VOICE_STT_PROVIDER: fake
+          VOICE_TTS_PROVIDER: fake
+  integration:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: restaurant_voice_ai_test
+          POSTGRES_USER: restaurant
+          POSTGRES_PASSWORD: test-only
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U restaurant"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12", cache: pip}
+      - run: pip install -e '.[dev]'
+      - run: alembic upgrade head
+      - run: pytest -m integration
+        env:
+          APP_ENV: test
+          DATABASE_URL: postgresql+asyncpg://restaurant:test-only@127.0.0.1:5432/restaurant_voice_ai_test
+          REDIS_ENABLED: "true"
+          REDIS_URL: redis://127.0.0.1:6379/1
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -f deploy/Dockerfile .

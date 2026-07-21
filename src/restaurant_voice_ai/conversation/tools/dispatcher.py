@@ -1,5 +1,7 @@
 """Application-controlled dispatcher for narrow service operations."""
 
+import hashlib
+import json
 from dataclasses import dataclass
 from typing import Any
 
@@ -14,6 +16,10 @@ from restaurant_voice_ai.conversation.models import (
 from restaurant_voice_ai.conversation.tools.definitions import MUTATION_TOOLS, TOOL_SCHEMAS
 from restaurant_voice_ai.conversation.tools.results import ToolResult
 from restaurant_voice_ai.core.exceptions import ApplicationError
+from restaurant_voice_ai.persistence.redis.idempotency import (
+    IdempotencyStatus,
+    IdempotencyStore,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,10 +36,12 @@ class ConversationToolDispatcher:
         knowledge: KnowledgeGateway,
         reservations: ReservationGateway,
         max_party_size: int,
+        idempotency: IdempotencyStore | None = None,
     ) -> None:
         self.knowledge = knowledge
         self.reservations = reservations
         self.max_party_size = max_party_size
+        self.idempotency = idempotency
 
     async def execute(
         self, tool_name: str, arguments: dict[str, Any], context: ToolExecutionContext
@@ -66,15 +74,40 @@ class ConversationToolDispatcher:
                 error_code="CONFIRMATION_REQUIRED",
                 message="Please confirm this change first.",
             )
+        idempotency_key: str | None = None
         try:
             parsed = schema.model_validate(arguments)
             parsed_data = parsed.model_dump(mode="json", exclude_none=True)
             party_size = parsed_data.get("party_size") or parsed_data.get("requested_party_size")
             if party_size is not None and int(party_size) > self.max_party_size:
                 raise ValueError("Party size exceeds the restaurant maximum")
+            if tool_name in MUTATION_TOOLS and self.idempotency is not None:
+                canonical = json.dumps(parsed_data, sort_keys=True, separators=(",", ":"))
+                idempotency_key = hashlib.sha256(
+                    f"{context.conversation_id}:{tool_name}:{canonical}".encode()
+                ).hexdigest()
+                existing = await self.idempotency.get(idempotency_key)
+                if existing and existing.status is IdempotencyStatus.COMPLETED:
+                    return ToolResult(
+                        tool_name=tool_name,
+                        success=True,
+                        status="replayed",
+                        data=existing.result,
+                    )
+                if not await self.idempotency.reserve(idempotency_key, 86400):
+                    return ToolResult(
+                        tool_name=tool_name,
+                        success=False,
+                        status="rejected",
+                        error_code="DUPLICATE_OPERATION_IN_PROGRESS",
+                        message="That operation is already being processed.",
+                    )
             data = await self._dispatch(tool_name, parsed_data)
+            if idempotency_key is not None and self.idempotency is not None:
+                await self.idempotency.complete(idempotency_key, data, 86400)
             return ToolResult(tool_name=tool_name, success=True, status="success", data=data)
         except (ValidationError, ValueError) as error:
+            await self._mark_idempotency_failed(idempotency_key)
             return ToolResult(
                 tool_name=tool_name,
                 success=False,
@@ -83,6 +116,7 @@ class ConversationToolDispatcher:
                 message=str(error).splitlines()[0],
             )
         except ApplicationError as error:
+            await self._mark_idempotency_failed(idempotency_key)
             return ToolResult(
                 tool_name=tool_name,
                 success=False,
@@ -91,6 +125,7 @@ class ConversationToolDispatcher:
                 message=error.message,
             )
         except Exception:
+            await self._mark_idempotency_failed(idempotency_key)
             return ToolResult(
                 tool_name=tool_name,
                 success=False,
@@ -98,6 +133,10 @@ class ConversationToolDispatcher:
                 error_code="TOOL_EXECUTION_ERROR",
                 message="The operation could not be completed right now.",
             )
+
+    async def _mark_idempotency_failed(self, key: str | None) -> None:
+        if key is not None and self.idempotency is not None:
+            await self.idempotency.fail(key, 300)
 
     async def _dispatch(self, tool_name: str, data: dict[str, Any]) -> dict[str, Any]:
         if tool_name == "search_restaurant_knowledge":

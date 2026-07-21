@@ -12,6 +12,8 @@ if TYPE_CHECKING:
     from restaurant_voice_ai.conversation.memory.base import ConversationMemory
     from restaurant_voice_ai.conversation.tools.dispatcher import ConversationToolDispatcher
     from restaurant_voice_ai.core.config import Settings
+    from restaurant_voice_ai.persistence.conversation_history.service import ConversationAudit
+    from restaurant_voice_ai.persistence.redis.idempotency import IdempotencyStore
 
 
 class ConversationEntities(BaseModel):
@@ -65,3 +67,5 @@ class ConversationDependencies:
     memory: "ConversationMemory | None" = None
     conversation_model: "ConversationModel | None" = None
     dispatcher: "ConversationToolDispatcher | None" = None
+    audit: "ConversationAudit | None" = None
+    idempotency: "IdempotencyStore | None" = None

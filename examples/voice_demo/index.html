@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Restaurant Voice Demo</title></head>
+<body>
+  <h1>Restaurant Voice Demo</h1>
+  <label>Language <select id="language"><option>en-IN</option><option>hi-IN</option><option>gu-IN</option></select></label>
+  <button id="connect">Connect</button><button id="mic" disabled>Start microphone</button>
+  <button id="interrupt" disabled>Interrupt</button><button id="reset" disabled>Reset conversation</button>
+  <p>Session: <code id="session">—</code></p><p>Conversation: <code id="conversation">—</code></p>
+  <h2>Transcript</h2><pre id="transcript"></pre><h2>Assistant</h2><pre id="assistant"></pre>
+  <h2>Events</h2><pre id="events"></pre>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -8,6 +8,7 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from restaurant_voice_ai.conversation.memory.base import ConversationMemory
 from restaurant_voice_ai.conversation.models import (
     ConversationDependencies,
     ConversationEntities,
@@ -25,6 +26,8 @@ from restaurant_voice_ai.conversation.nodes.extract_entities import (
 from restaurant_voice_ai.core.config import Settings
 from restaurant_voice_ai.db.schemas.reservation import ReservationCreate, ReservationUpdate
 from restaurant_voice_ai.db.services.reservation_service import ReservationService
+from restaurant_voice_ai.persistence.conversation_history.service import SqlConversationAudit
+from restaurant_voice_ai.persistence.redis.idempotency import IdempotencyStore
 from restaurant_voice_ai.rag.service import RagService
 
 
@@ -148,7 +151,11 @@ class DatabaseReservationGateway:
 
 
 def build_conversation_dependencies(
-    settings: Settings, session: AsyncSession, rag_service: RagService
+    settings: Settings,
+    session: AsyncSession,
+    rag_service: RagService,
+    memory: ConversationMemory | None = None,
+    idempotency: IdempotencyStore | None = None,
 ) -> ConversationDependencies:
     rule_classifier = RuleBasedIntentClassifier()
     rule_extractor = RuleBasedEntityExtractor(settings.restaurant_timezone)
@@ -163,4 +170,11 @@ def build_conversation_dependencies(
         knowledge=RagKnowledgeGateway(rag_service),
         reservations=DatabaseReservationGateway(ReservationService(session, settings), settings),
         settings=settings,
+        memory=memory,
+        audit=(
+            SqlConversationAudit(session, settings.conversation_history_store_transcripts)
+            if settings.conversation_history_enabled
+            else None
+        ),
+        idempotency=idempotency,
     )

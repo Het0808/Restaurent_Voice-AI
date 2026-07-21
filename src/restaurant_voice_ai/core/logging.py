@@ -2,6 +2,8 @@
 
 import logging
 
+from restaurant_voice_ai.observability.logging import JsonFormatter
+
 
 class ConsoleFormatter(logging.Formatter):
     """Readable formatter that appends selected structured context."""
@@ -18,10 +20,15 @@ class ConsoleFormatter(logging.Formatter):
         return f"{message} {context}" if context else message
 
 
-def configure_logging(level: str) -> None:
+def configure_logging(level: str, log_format: str = "text") -> None:
     """Configure application logging without logging request bodies."""
     handler = logging.StreamHandler()
-    handler.setFormatter(ConsoleFormatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+    formatter: logging.Formatter
+    if log_format == "json":
+        formatter = JsonFormatter()
+    else:
+        formatter = ConsoleFormatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
+    handler.setFormatter(formatter)
 
     root_logger = logging.getLogger()
     root_logger.handlers.clear()

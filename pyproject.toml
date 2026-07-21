@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "multilingual-restaurant-voice-ai"
-version = "0.1.0"
+version = "0.8.0"
 description = "Multilingual AI Restaurant Voice Receptionist"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
@@ -20,15 +20,23 @@ dependencies = [
     "pydantic>=2.10,<3.0",
     "pydantic-settings>=2.7,<3.0",
     "pypdf>=5.0,<7.0",
+    "prometheus-client>=0.21,<1.0",
     "python-multipart>=0.0.20,<1.0",
     "rank-bm25>=0.2.2,<1.0",
-    "sentence-transformers>=3.4,<6.0",
+    "redis>=5.2,<7.0",
     "python-dotenv>=1.0,<2.0",
     "sqlalchemy>=2.0,<3.0",
+    "twilio>=9.4,<10.0",
     "uvicorn[standard]>=0.34,<1.0",
 ]
 
 [project.optional-dependencies]
+local-embeddings = ["sentence-transformers>=3.4,<6.0"]
+voice-google = [
+    "google-cloud-speech>=2.30,<3.0",
+    "google-cloud-texttospeech>=2.25,<3.0",
+]
+load = ["locust>=2.32,<3.0", "websocket-client>=1.8,<2.0"]
 dev = [
     "aiosqlite>=0.20,<1.0",
     "httpx>=0.28,<1.0",
@@ -44,6 +52,11 @@ packages = ["src/restaurant_voice_ai"]
 [tool.pytest.ini_options]
 addopts = "-ra"
 testpaths = ["tests"]
+markers = [
+    "integration: requires external infrastructure",
+    "redis: requires Redis",
+    "postgres: requires PostgreSQL",
+]
 
 [tool.ruff]
 target-version = "py312"

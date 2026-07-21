@@ -18,6 +18,7 @@ from restaurant_voice_ai.main import create_app
 def settings(tmp_path: Path) -> Settings:
     return Settings(
         app_env="test",
+        app_version="0.8.0",
         cors_origins=[],
         database_url=f"sqlite+aiosqlite:///{tmp_path / 'test.db'}",
         chroma_persist_directory=str(tmp_path / "chroma"),
