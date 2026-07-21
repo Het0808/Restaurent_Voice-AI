@@ -74,6 +74,73 @@ class DatabaseOperationError(ApplicationError):
         super().__init__(message, code="DATABASE_OPERATION_ERROR", status_code=503)
 
 
+class UnsupportedDocumentTypeError(ApplicationError):
+    def __init__(self) -> None:
+        super().__init__(
+            "Unsupported document type", code="UNSUPPORTED_DOCUMENT_TYPE", status_code=422
+        )
+
+
+class EmptyDocumentError(ApplicationError):
+    def __init__(self) -> None:
+        super().__init__(
+            "Document contains no readable text", code="EMPTY_DOCUMENT", status_code=422
+        )
+
+
+class EmbeddingConfigurationError(ApplicationError):
+    def __init__(self, provider: str) -> None:
+        super().__init__(
+            f"The {provider} embedding provider is not configured",
+            code="EMBEDDING_NOT_CONFIGURED",
+            status_code=503,
+        )
+
+
+class EmbeddingProviderError(ApplicationError):
+    def __init__(self, provider: str = "selected") -> None:
+        super().__init__(
+            f"The {provider} embedding provider is unavailable",
+            code="EMBEDDING_PROVIDER_ERROR",
+            status_code=503,
+        )
+
+
+class EmbeddingProviderConfigurationError(ApplicationError):
+    def __init__(self, provider: str) -> None:
+        super().__init__(
+            f"Unsupported embedding provider: {provider}",
+            code="UNSUPPORTED_EMBEDDING_PROVIDER",
+            status_code=422,
+        )
+
+
+class EmbeddingProviderInitializationError(ApplicationError):
+    def __init__(self, provider: str) -> None:
+        super().__init__(
+            f"The {provider} embedding provider could not be initialized",
+            code="EMBEDDING_PROVIDER_INITIALIZATION_ERROR",
+            status_code=503,
+        )
+
+
+class VectorStoreError(ApplicationError):
+    def __init__(self) -> None:
+        super().__init__(
+            "Knowledge vector store operation failed", code="VECTOR_STORE_ERROR", status_code=503
+        )
+
+
+class KnowledgeSourceNotFoundError(ResourceNotFoundError):
+    def __init__(self) -> None:
+        super().__init__("Knowledge source not found")
+
+
+class RetrievalError(ApplicationError):
+    def __init__(self) -> None:
+        super().__init__("Knowledge retrieval failed", code="RETRIEVAL_ERROR", status_code=503)
+
+
 def error_content(code: str, message: str) -> dict[str, Any]:
     return ErrorResponse(code=code, message=message).model_dump()
 

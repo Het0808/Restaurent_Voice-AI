@@ -4,8 +4,8 @@
 - Stage 1: Architecture and planning — Completed
 - Stage 2: FastAPI foundation — Completed
 - Stage 3: Reservation database — Completed
-- Stage 4: RAG pipeline — Next
-- Stage 5: LangGraph workflow — Not started
+- Stage 4: RAG pipeline — Completed
+- Stage 5: LangGraph workflow — Next
 - Stage 6: Speech-to-text — Not started
 - Stage 7: Text-to-speech — Not started
 - Stage 8: Browser voice demo — Not started
@@ -21,3 +21,7 @@ Created the Python 3.12 src-based FastAPI foundation with an application factory
 ## Stage 3 summary
 
 Added async SQLAlchemy 2 models for restaurant tables, reservations, and minimal call sessions; an async Alembic initial migration; repositories, services, versioned APIs, database readiness, and an idempotent table seed script. Availability uses active capacity-ordered candidates and database overlap queries. Reservation creation and schedule changes lock PostgreSQL table rows, recheck overlaps, and commit before returning confirmed state. Thirteen tests passed using isolated SQLite fallback coverage; PostgreSQL migration execution and concurrent row-lock testing were not run because a PostgreSQL test server was unavailable. PostgreSQL exclusion constraints remain a documented future hardening option.
+
+## Stage 4 summary
+
+Added fictional restaurant documents; Markdown, text, and PDF loading; deterministic heading-aware chunking; provider-neutral Google, OpenAI, and local embeddings; persistent Chroma storage; in-memory BM25; weighted normalized hybrid fusion; optional reranking architecture; retrieval context and chunk-derived citations; knowledge APIs; and an ingestion script. Provider and retrieval tests use fake embeddings and temporary Chroma directories. No successful remote embedding call, final-answer generation, LangGraph flow, or reservation-data retrieval was introduced.

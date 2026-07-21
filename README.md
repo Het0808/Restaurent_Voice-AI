@@ -4,7 +4,7 @@ A portfolio-grade backend for an AI voice receptionist designed to assist restau
 
 ## Current capabilities
 
-Stage 3 provides a production-oriented FastAPI and PostgreSQL reservation foundation:
+Stage 4 adds restaurant knowledge retrieval to the FastAPI and PostgreSQL foundation:
 
 - Application factory and modern lifespan handling
 - Environment-backed Pydantic v2 settings
@@ -21,8 +21,15 @@ Stage 3 provides a production-oriented FastAPI and PostgreSQL reservation founda
 - Transactional reservation creation, retrieval, modification, and cancellation
 - PostgreSQL row locking to serialize competing table assignments
 - Database readiness endpoint and idempotent sample-table seed script
+- Markdown, text, and text-based PDF knowledge loaders
+- Heading-aware deterministic chunks with stable IDs
+- Provider-neutral embeddings with Google, OpenAI, and local implementations
+- Persistent ChromaDB vectors and in-memory BM25 lexical search
+- Weighted hybrid fusion, score breakdowns, and an optional reranking interface
+- Retrieval-only context and chunk-derived citations
+- Knowledge ingestion, upload, search, statistics, and deletion APIs
 
-No RAG, AI, speech, telephony, Redis, authentication, or Docker functionality is implemented yet.
+No final-answer LLM, LangGraph, speech, telephony, Redis, authentication, or Docker functionality is implemented yet.
 
 ## Prerequisites
 
@@ -59,6 +66,31 @@ Optional local configuration:
 cp .env.example .env
 ```
 
+Google is the default. Create a key in [Google AI Studio](https://aistudio.google.com/app/apikey), then configure:
+
+```bash
+EMBEDDING_PROVIDER=google
+GOOGLE_API_KEY='your-key-from-a-secure-secret-store'
+GOOGLE_EMBEDDING_MODEL=text-embedding-004
+```
+
+To use OpenAI instead:
+
+```bash
+EMBEDDING_PROVIDER=openai
+OPENAI_API_KEY='your-key-from-a-secure-secret-store'
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+```
+
+For local development without an API key:
+
+```bash
+EMBEDDING_PROVIDER=local
+LOCAL_EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
+```
+
+The local model downloads automatically on first use and can run offline after it is cached. Never commit API keys. The API starts without a remote key; only embedding-dependent operations return a configuration error.
+
 Create a local database and apply the schema:
 
 ```bash
@@ -87,6 +119,31 @@ PYTHONPATH=src python scripts/seed_tables.py
 ```
 
 The seed is idempotent and creates tables with capacities 2, 2, 4, 4, 6, and 8.
+
+Ingest the fictional sample knowledge after configuring the selected provider:
+
+```bash
+PYTHONPATH=src python scripts/ingest_knowledge.py
+```
+
+## RAG architecture
+
+Vector retrieval finds semantic matches and paraphrases; BM25 favors exact menu names, allergens, times, and policy terms. Each result list is normalized independently, then combined using the default score `0.6 × vector + 0.4 × BM25`. Stable chunk IDs remove duplicates before thresholding and top-K selection. A no-op reranker provides an extension point without adding a large local model.
+
+Ingestion flows through validated loader → heading-aware chunker → selected embedding provider → source replacement in Chroma → BM25 rebuild. Queries use the same provider before Chroma and BM25 retrieval, normalized weighted fusion, thresholding, context, and citations. The RAG service depends only on the shared provider interface.
+
+| RAG setting | Default |
+|---|---|
+| `EMBEDDING_PROVIDER` | `google` |
+| `GOOGLE_EMBEDDING_MODEL` | `text-embedding-004` |
+| `OPENAI_EMBEDDING_MODEL` | `text-embedding-3-small` |
+| `LOCAL_EMBEDDING_MODEL` | `sentence-transformers/all-MiniLM-L6-v2` |
+| `CHROMA_PERSIST_DIRECTORY` | `.chroma` |
+| `CHROMA_COLLECTION_NAME` | `restaurant_knowledge` |
+| `RAG_TOP_K` | `5` |
+| `RAG_VECTOR_WEIGHT` / `RAG_BM25_WEIGHT` | `0.6` / `0.4` |
+| `RAG_SCORE_THRESHOLD` | `0.15` |
+| `RAG_CHUNK_SIZE` / `RAG_CHUNK_OVERLAP` | `800` / `120` characters |
 
 ## Development server
 
@@ -130,6 +187,11 @@ ruff check --fix .
 | `GET` | `/api/v1/reservations/code/{confirmation_code}` | Retrieve by confirmation code |
 | `PATCH` | `/api/v1/reservations/{reservation_id}` | Modify a reservation |
 | `POST` | `/api/v1/reservations/{reservation_id}/cancel` | Cancel without deleting |
+| `POST` | `/api/v1/knowledge/search` | Retrieve ranked evidence and citations |
+| `POST` | `/api/v1/knowledge/ingest/default` | Ingest `data/knowledge` |
+| `POST` | `/api/v1/knowledge/upload` | Ingest one supported document |
+| `GET` | `/api/v1/knowledge/stats` | Return Chroma and BM25 statistics |
+| `DELETE` | `/api/v1/knowledge/source/{source_name}` | Delete one indexed source |
 | `GET` | `/docs` | Interactive OpenAPI documentation |
 
 ## API examples
@@ -166,6 +228,25 @@ curl -X POST http://127.0.0.1:8000/api/v1/reservations/00000000-0000-0000-0000-0
   -d '{}'
 ```
 
+Retrieve evidence:
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/v1/knowledge/search \
+  -H 'Content-Type: application/json' \
+  -d '{"query":"Does paneer tikka contain dairy?","top_k":5}'
+```
+
+Expected evidence is sample menu or FAQ text stating that paneer and its yogurt marinade contain dairy. This is documentation retrieval, not medical advice or a guarantee that food is safe for an allergy.
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/v1/knowledge/ingest/default
+
+curl -X POST http://127.0.0.1:8000/api/v1/knowledge/upload \
+  -F 'file=@data/knowledge/menu.md'
+```
+
+Citations are emitted only for retrieved chunks, using markers such as `[Source: menu.md | Section: Main Course]`. No qualifying result produces empty context/citations and `evidence_found: false`.
+
 ## Current limitations
 
 - Authentication and tenant isolation are not implemented; the API is for controlled development use.
@@ -174,7 +255,13 @@ curl -X POST http://127.0.0.1:8000/api/v1/reservations/00000000-0000-0000-0000-0
 - PostgreSQL `SELECT FOR UPDATE` protects application writes, but a database exclusion constraint is deferred.
 - Reservation emails and phone numbers receive only basic length/blank validation in this stage.
 - Call-session storage exists for future use, but no call handling is implemented.
+- RAG stores approved static documents only; live availability remains in PostgreSQL.
+- Remote providers require their matching key; local embeddings require no API key.
+- Switching providers changes vector dimensions, so existing sources must be reingested into an empty or differently named Chroma collection.
+- PDF loading extracts embedded text only and does not use OCR.
+- BM25 is process-local and intentionally uses simple tokenization.
+- Allergen evidence is informational and cannot guarantee an allergen-free meal.
 
 ## Next stage
 
-Stage 4 will add the restaurant-document RAG pipeline while keeping live availability exclusively in PostgreSQL. See [project context](docs/project-context.md), [architecture](docs/architecture.md), and [progress](docs/progress.md) for details.
+Stage 5 will add the LangGraph workflow and bounded tool coordination. It will consume retrieved evidence while keeping live availability in PostgreSQL. See [RAG design](docs/rag-design.md), [architecture](docs/architecture.md), and [progress](docs/progress.md).
