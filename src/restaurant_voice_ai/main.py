@@ -27,7 +27,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         logger.info(
             "Application startup",
-            extra={"environment": app_settings.app_env, "version": app_settings.app_version},
+            extra={
+                "environment": app_settings.app_env,
+                "version": app_settings.app_version,
+                "embedding_provider": app_settings.embedding_provider,
+                "embedding_model": app_settings.embedding_model_name,
+                "chroma_persist_directory": app_settings.chroma_persist_directory,
+                "chroma_collection_name": app_settings.chroma_collection_name,
+            },
         )
         try:
             yield

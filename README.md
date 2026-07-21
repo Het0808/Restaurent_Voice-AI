@@ -192,6 +192,7 @@ ruff check --fix .
 | `POST` | `/api/v1/knowledge/upload` | Ingest one supported document |
 | `GET` | `/api/v1/knowledge/stats` | Return Chroma and BM25 statistics |
 | `DELETE` | `/api/v1/knowledge/source/{source_name}` | Delete one indexed source |
+| `POST` | `/api/v1/conversation/message` | Process one stateless deterministic conversation turn |
 | `GET` | `/docs` | Interactive OpenAPI documentation |
 
 ## API examples
@@ -261,7 +262,20 @@ Citations are emitted only for retrieved chunks, using markers such as `[Source:
 - PDF loading extracts embedded text only and does not use OCR.
 - BM25 is process-local and intentionally uses simple tokenization.
 - Allergen evidence is informational and cannot guarantee an allergen-free meal.
+- The Stage 5 conversation API is stateless and English-first for entity extraction; Hindi and Gujarati currently have bounded keyword intent support.
+
+## Conversation workflow
+
+The Stage 5 LangGraph workflow uses offline rules by default, delegates restaurant-document questions to RAG, and delegates live availability and reservation mutations to PostgreSQL-backed services. It has no autonomous loops and never places services or secrets in graph state.
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/v1/conversation/message \
+  -H 'Content-Type: application/json' \
+  -d '{"message":"Is a table available on 2030-08-01 at 7 PM for four?","language":"en"}'
+```
+
+Configuration defaults to `CONVERSATION_INTENT_PROVIDER=rules`. Optional Google classification and extraction require both `CONVERSATION_INTENT_PROVIDER=google`, `GOOGLE_API_KEY`, and `GOOGLE_CHAT_MODEL`; provider failures safely fall back to rules. See [conversation graph design](docs/conversation-graph.md).
 
 ## Next stage
 
-Stage 5 will add the LangGraph workflow and bounded tool coordination. It will consume retrieved evidence while keeping live availability in PostgreSQL. See [RAG design](docs/rag-design.md), [architecture](docs/architecture.md), and [progress](docs/progress.md).
+Stage 6 will add the LLM response generation and tool layer while preserving the deterministic workflow and business-service boundaries. See [conversation graph design](docs/conversation-graph.md), [architecture](docs/architecture.md), and [progress](docs/progress.md).

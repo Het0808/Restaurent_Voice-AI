@@ -48,3 +48,20 @@ def test_threshold_and_missing_retriever_results() -> None:
     assert vector_only[0].vector_score == 1.0
     assert lexical_only[0].bm25_score == 1.0
     assert filtered == []
+
+
+def test_lexical_fallback_respects_scores_threshold_and_order() -> None:
+    retriever = HybridRetriever(
+        FakeVectorStore([]),
+        FakeBM25Store([ScoredChunk(chunk("best"), 4.0), ScoredChunk(chunk("second"), 2.0)]),
+        0.6,
+        0.4,
+        0.1,
+    )
+
+    results = retriever.retrieve_lexical("paneer dairy", 5)
+
+    assert [result.chunk.chunk_id for result in results] == ["best"]
+    assert results[0].vector_score == 0
+    assert results[0].bm25_score == 1
+    assert results[0].hybrid_score == 0.4

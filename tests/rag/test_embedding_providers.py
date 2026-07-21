@@ -20,6 +20,9 @@ def settings(**values: object) -> Settings:
         "cors_origins": [],
         "google_api_key": None,
         "openai_api_key": None,
+        "google_embedding_model": "text-embedding-004",
+        "openai_embedding_model": "text-embedding-3-small",
+        "local_embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
     }
     defaults.update(values)
     return Settings(**defaults)

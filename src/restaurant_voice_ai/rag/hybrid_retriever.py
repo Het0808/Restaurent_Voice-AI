@@ -75,3 +75,20 @@ class HybridRetriever:
         results = [item for item in results if item.hybrid_score >= self.threshold]
         results.sort(key=lambda item: (-item.hybrid_score, item.chunk.chunk_id))
         return self.reranker.rerank(query, results)[:top_k]
+
+    def retrieve_lexical(self, query: str, top_k: int) -> list[RetrievalResult]:
+        """Return configured, thresholded BM25 results when embeddings are unavailable."""
+        candidates = self.bm25_store.search(query, max(top_k * 3, top_k))
+        scores = _normalize(candidates)
+        results = [
+            RetrievalResult(
+                chunk=item.chunk,
+                vector_score=0.0,
+                bm25_score=scores[item.chunk.chunk_id],
+                hybrid_score=self.bm25_weight * scores[item.chunk.chunk_id],
+            )
+            for item in candidates
+        ]
+        results = [item for item in results if item.hybrid_score >= self.threshold]
+        results.sort(key=lambda item: (-item.hybrid_score, item.chunk.chunk_id))
+        return self.reranker.rerank(query, results)[:top_k]

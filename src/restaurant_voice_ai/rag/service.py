@@ -5,6 +5,7 @@ from pathlib import Path
 
 from restaurant_voice_ai.core.config import Settings
 from restaurant_voice_ai.core.exceptions import (
+    EmbeddingProviderError,
     EmptyDocumentError,
     KnowledgeSourceNotFoundError,
     RetrievalError,
@@ -69,9 +70,16 @@ class RagService:
         return IngestionResult(sources=sources, source_count=len(sources), chunk_count=chunk_count)
 
     async def search(self, query: str, top_k: int | None = None) -> list[RetrievalResult]:
+        result_limit = top_k or self.settings.rag_top_k
         try:
             embedding = await self.embeddings.embed_query(query)
-            return self.retriever.retrieve(query, embedding, top_k or self.settings.rag_top_k)
+            return self.retriever.retrieve(query, embedding, result_limit)
+        except EmbeddingProviderError:
+            logger.warning(
+                "Embedding provider unavailable; using persisted BM25 knowledge index",
+                extra={"embedding_provider": self.settings.embedding_provider},
+            )
+            return self.retriever.retrieve_lexical(query, result_limit)
         except Exception as exc:
             from restaurant_voice_ai.core.exceptions import ApplicationError
 

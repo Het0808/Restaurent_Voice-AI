@@ -1,6 +1,7 @@
 """Environment-backed application configuration."""
 
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic import Field, field_validator
@@ -45,6 +46,8 @@ class Settings(BaseSettings):
     rag_score_threshold: float = Field(default=0.15, ge=0, le=1)
     rag_chunk_size: int = Field(default=800, ge=100, le=4000)
     rag_chunk_overlap: int = Field(default=120, ge=0, le=1000)
+    conversation_intent_provider: Literal["rules", "google"] = "rules"
+    google_chat_model: str | None = None
 
     @field_validator("api_v1_prefix")
     @classmethod
@@ -62,16 +65,34 @@ class Settings(BaseSettings):
                 raise ValueError("CORS_ORIGINS must contain explicit HTTP(S) origins")
         return origins
 
-    @field_validator("google_api_key", "openai_api_key", mode="before")
+    @field_validator("google_api_key", "openai_api_key", "google_chat_model", mode="before")
     @classmethod
     def blank_api_key_is_none(cls, value: object) -> object:
         return None if value == "" else value
+
+    @field_validator("chroma_persist_directory", mode="after")
+    @classmethod
+    def resolve_chroma_directory(cls, value: str) -> str:
+        path = Path(value).expanduser()
+        if not path.is_absolute():
+            project_root = Path(__file__).resolve().parents[3]
+            path = project_root / path
+        return str(path.resolve())
 
     def model_post_init(self, _: object) -> None:
         if self.rag_chunk_overlap >= self.rag_chunk_size:
             raise ValueError("RAG_CHUNK_OVERLAP must be smaller than RAG_CHUNK_SIZE")
         if self.rag_vector_weight + self.rag_bm25_weight <= 0:
             raise ValueError("At least one RAG retrieval weight must be positive")
+
+    @property
+    def embedding_model_name(self) -> str:
+        models = {
+            "google": self.google_embedding_model,
+            "openai": self.openai_embedding_model,
+            "local": self.local_embedding_model,
+        }
+        return models[self.embedding_provider]
 
 
 @lru_cache

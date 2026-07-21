@@ -20,6 +20,7 @@ def settings(tmp_path: Path) -> Settings:
         app_env="test",
         cors_origins=[],
         database_url=f"sqlite+aiosqlite:///{tmp_path / 'test.db'}",
+        chroma_persist_directory=str(tmp_path / "chroma"),
     )
 
 
